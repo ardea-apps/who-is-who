@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Who's who — class photo</title>
+<style>
+  :root{--bg:#f4efe6;--ink:#2a2118;--mut:#7a6d5c;--acc:#8a3b1e;--card:#fffdf8;--line:#ddd2bf;--ok:#2f6b3a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 Georgia,"Times New Roman",serif}
+  header{padding:18px 16px 10px;max-width:1200px;margin:0 auto}
+  h1{margin:0 0 4px;font-size:1.5rem}
+  p.sub{margin:0;color:var(--mut);font-size:.95rem}
+  .bar{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 16px}
+  .bar .in{max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .bar label{font-size:.9rem;color:var(--mut)}
+  input[type=text],input[type=password]{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;min-width:0}
+  button{font:inherit;padding:8px 12px;border:1px solid var(--acc);background:var(--acc);color:#fff;border-radius:6px;cursor:pointer}
+  button.sec{background:transparent;color:var(--acc)}
+  button:disabled{opacity:.5;cursor:default}
+  .prog{margin-left:auto;font-size:.9rem;color:var(--mut)}
+  .wrap{max-width:1200px;margin:0 auto;padding:12px 16px 40px}
+  .photo{position:relative;border:1px solid var(--line);background:#000;overflow-x:auto}
+  .photo .inner{position:relative;min-width:900px}
+  .photo img{display:block;width:100%;height:auto}
+  .mk{position:absolute;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:rgba(190,30,30,.92);color:#fff;font:600 12px/26px Arial,sans-serif;text-align:center;border:1px solid #fff;cursor:pointer;padding:0}
+  .mk.done{background:rgba(47,107,58,.92)}
+  .hint{font-size:.85rem;color:var(--mut);margin:6px 0 16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
+  .card.flash{outline:3px solid var(--acc)}
+  .card .ph{display:grid;grid-template-columns:1fr}
+  .card .ph.two{grid-template-columns:1fr 1fr}
+  .card .cell{position:relative;min-width:0}
+  .card img{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:#ccc}
+  .tag{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.7);color:#fff;border-radius:10px;padding:0 8px;font:600 .72rem Arial,sans-serif}
+  .up{font-size:.82rem;color:var(--acc);cursor:pointer;text-decoration:underline;background:none;border:0;padding:0;align-self:flex-start}
+  .card .num{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.7);color:#fff;border-radius:12px;padding:1px 9px;font:600 .85rem Arial,sans-serif}
+  .card .b{padding:10px;display:flex;flex-direction:column;gap:6px}
+  .nm{font-weight:700;min-height:1.4em}
+  .nm.empty{color:var(--mut);font-weight:400;font-style:italic}
+  .by{font-size:.78rem;color:var(--mut);min-height:1em}
+  .row{display:flex;gap:6px}
+  .row input{flex:1}
+  #gate{max-width:420px;margin:60px auto;padding:20px;background:var(--card);border:1px solid var(--line);border-radius:8px}
+  #gate .row{margin-top:12px}
+  .msg{font-size:.85rem;color:#a02020;min-height:1.2em;margin-top:8px}
+  .hide{display:none!important}
+  .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#222;color:#fff;padding:8px 14px;border-radius:6px;font-size:.9rem;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50}
+  .toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<div id="gate" class="hide">
+  <h1 style="font-size:1.25rem;margin:0 0 6px">Who's who</h1>
+  <div style="color:var(--mut);font-size:.95rem">Enter the group passphrase to continue.</div>
+  <div class="row"><input type="password" id="pass" placeholder="Passphrase" autocomplete="off"><button id="passGo">Enter</button></div>
+  <div class="msg" id="gateMsg"></div>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <h1>Who's who — class photo</h1>
+    <p class="sub">Find a face, type the name, press Save. You can also add a recent photo next to the old one. Anyone can correct a name; the full history is kept.</p>
+  </header>
+  <div class="bar"><div class="in">
+    <label for="me">Your name:</label>
+    <input type="text" id="me" placeholder="So we know who entered it" maxlength="60">
+    <label><input type="checkbox" id="onlyEmpty"> Only unnamed</label>
+    <span class="prog" id="prog"></span>
+  </div></div>
+  <div class="wrap">
+    <div class="photo"><div class="inner" id="inner"><img src="class.jpg" alt="Class photo with numbered markers"></div></div>
+    <div class="hint">Tap a number to jump to that person. Red = no name yet, green = named.</div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====== CONFIG ====== */
+const API_URL = "https://script.google.com/macros/s/AKfycbz6WIe_g2aAWccEbxqul8SkBCJIdK7KY3DGHaxdiFKUdv1btKzTk90genRG4Hkmu7Fhmg/exec";   // Apps Script web app URL (ends in /exec)
+const COUNT = 39;
+const POLL_MS = 30000;
+const PTS = [[1,2.11,42.54],[2,5.83,48.47],[3,8.11,38.81],[4,12.57,53.39],[5,19.71,31.69],[6,21.26,51.36],[7,24.57,24.75],[8,25.54,66.61],[9,26.11,36.95],[10,32.86,31.86],[11,34.0,62.2],[12,35.26,29.32],[13,35.43,37.97],[14,35.83,49.32],[15,41.14,40.51],[16,42.74,17.46],[17,46.86,34.24],[18,49.54,25.76],[19,48.57,27.8],[20,49.26,14.07],[21,52.4,70.51],[22,54.29,35.76],[23,55.83,13.9],[24,56.0,51.02],[25,56.11,22.88],[26,62.11,34.75],[27,63.26,45.42],[28,63.43,26.44],[29,65.43,62.2],[30,66.11,31.86],[31,70.0,43.22],[32,71.83,58.64],[33,73.26,28.98],[34,73.83,35.76],[35,75.26,52.2],[36,78.29,60.51],[37,79.14,38.81],[38,83.14,43.39],[39,92.69,43.39]];
+/* ==================== */
+
+const $ = id => document.getElementById(id);
+let KEY = localStorage.getItem("ww_key") || "";
+let names = {};            // n -> {name, by, ts}
+let dirty = {};            // n -> true while the user is typing
+
+function toast(t){const e=$("toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),2200)}
+
+async function api(payload){
+  const opts = payload
+    ? {method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({key:KEY},payload))}
+    : {};
+  const url = payload ? API_URL : API_URL + "?key=" + encodeURIComponent(KEY);
+  const r = await fetch(url, opts);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || "Request failed");
+  return j;
+}
+
+function buildUI(){
+  const inner = $("inner"), grid = $("grid");
+  PTS.forEach(([n,x,y])=>{
+    const b=document.createElement("button");
+    b.className="mk";b.id="mk"+n;b.textContent=n;b.style.left=x+"%";b.style.top=y+"%";
+    b.setAttribute("aria-label","Person "+n);
+    b.onclick=()=>{const c=$("card"+n);c.scrollIntoView({behavior:"smooth",block:"center"});c.classList.add("flash");setTimeout(()=>c.classList.remove("flash"),1500);$("in"+n).focus({preventScroll:true})};
+    inner.appendChild(b);
+  });
+  for(let n=1;n<=COUNT;n++){
+    const p=String(n).padStart(2,"0");
+    const c=document.createElement("div");c.className="card";c.id="card"+n;
+    c.innerHTML='<div class="ph" id="ph'+n+'"><div class="cell"><img loading="lazy" src="faces/'+p+'.jpg" alt="Person '+n+'"><span class="num">'+n+'</span><span class="tag">Then</span></div>'+
+      '<div class="cell hide" id="cn'+n+'"><img id="nw'+n+'" alt="Recent photo of person '+n+'"><span class="tag">Now</span></div></div>'+
+      '<div class="b"><div class="nm empty" id="nm'+n+'">No name yet</div><div class="by" id="by'+n+'"></div>'+
+      '<div class="row"><input type="text" id="in'+n+'" maxlength="80" placeholder="Name"><button id="sv'+n+'">Save</button></div>'+
+      '<button class="up" id="up'+n+'">Add a recent photo</button><input type="file" accept="image/*" class="hide" id="fl'+n+'"></div>';
+    grid.appendChild(c);
+    const inp=c.querySelector("input"), btn=c.querySelector("button");
+    inp.addEventListener("input",()=>{dirty[n]=true});
+    inp.addEventListener("keydown",e=>{if(e.key==="Enter")btn.click()});
+    btn.onclick=()=>save(n);
+    const fl=c.querySelector("#fl"+n);
+    c.querySelector("#up"+n).onclick=()=>fl.click();
+    fl.addEventListener("change",()=>{if(fl.files[0])uploadPhoto(n,fl.files[0]);fl.value=""});
+  }
+  $("me").value=localStorage.getItem("ww_me")||"";
+  $("me").addEventListener("input",()=>localStorage.setItem("ww_me",$("me").value.trim()));
+  $("onlyEmpty").addEventListener("change",applyFilter);
+}
+
+function render(){
+  let named=0;
+  for(let n=1;n<=COUNT;n++){
+    const rec=names[n], nm=$("nm"+n), by=$("by"+n), inp=$("in"+n), mk=$("mk"+n);
+    if(rec&&rec.name){
+      named++;nm.textContent=rec.name;nm.classList.remove("empty");
+      by.textContent="added by "+(rec.by||"someone")+(rec.ts?" · "+new Date(rec.ts).toLocaleDateString():"");
+      if(!dirty[n]&&document.activeElement!==inp)inp.value=rec.name;
+      if(mk)mk.classList.add("done");
+    }else{
+      nm.textContent="No name yet";nm.classList.add("empty");by.textContent="";
+      if(mk)mk.classList.remove("done");
+    }
+  }
+  $("prog").textContent=named+" of "+COUNT+" named";
+  applyFilter();
+  syncPhotos();
+}
+
+/* ---- recent photos ---- */
+const photos = {};          // n -> {pv, url}
+let photoQueue = [], photoBusy = 0;
+function showNow(n){
+  const ph=$("ph"+n), cell=$("cn"+n), p=photos[n];
+  if(p&&p.url){$("nw"+n).src=p.url;cell.classList.remove("hide");ph.classList.add("two")}
+}
+function syncPhotos(){
+  for(let n=1;n<=COUNT;n++){
+    const rec=names[n];
+    if(!rec||!rec.pv)continue;
+    if(photos[n]&&photos[n].pv===rec.pv){showNow(n);continue}
+    if(!photoQueue.includes(n))photoQueue.push(n);
+  }
+  pumpPhotos();
+}
+function pumpPhotos(){
+  while(photoBusy<3&&photoQueue.length){
+    const n=photoQueue.shift();photoBusy++;
+    fetch(API_URL+"?action=photo&n="+n+"&key="+encodeURIComponent(KEY))
+      .then(r=>r.json())
+      .then(j=>{if(j.ok){photos[n]={pv:j.pv,url:"data:image/jpeg;base64,"+j.data};if(names[n])names[n].pv=j.pv;showNow(n)}})
+      .catch(()=>{})
+      .finally(()=>{photoBusy--;pumpPhotos()});
+  }
+}
+function shrink(file,max){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file), im=new Image();
+    im.onload=()=>{
+      const s=Math.min(1,max/Math.max(im.width,im.height));
+      const c=document.createElement("canvas");c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);
+      c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+      URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",0.82));
+    };
+    im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("Could not read that image"))};
+    im.src=url;
+  });
+}
+async function uploadPhoto(n,file){
+  const by=$("me").value.trim();
+  if(!by){toast("Enter your name at the top first");$("me").focus();return}
+  const btn=$("up"+n);btn.textContent="Uploading…";btn.disabled=true;
+  try{
+    const dataUrl=await shrink(file,480);
+    const b64=dataUrl.split(",")[1];
+    const j=await api({action:"photo",n:n,by:by,data:b64});
+    photos[n]={pv:j.pv,url:dataUrl};
+    names[n]=Object.assign({name:"",by:"",ts:""},names[n]||{},{pv:j.pv});
+    showNow(n);toast("Photo added to #"+n);
+  }catch(e){toast(e.message||"Upload failed")}
+  btn.textContent="Add a recent photo";btn.disabled=false;
+}
+function applyFilter(){
+  const only=$("onlyEmpty").checked;
+  for(let n=1;n<=COUNT;n++){
+    const has=names[n]&&names[n].name;
+    $("card"+n).classList.toggle("hide",only&&!!has);
+  }
+}
+
+async function load(){
+  try{const j=await api();names=j.names||{};render()}
+  catch(e){if(/passphrase/i.test(e.message)){localStorage.removeItem("ww_key");KEY="";showGate("Wrong passphrase.")}else toast("Could not load names")}
+}
+
+async function save(n){
+  const inp=$("in"+n), name=inp.value.trim(), by=$("me").value.trim();
+  if(!by){toast("Enter your name at the top first");$("me").focus();return}
+  if(!name){toast("Type a name first");inp.focus();return}
+  const btn=$("sv"+n);btn.disabled=true;btn.textContent="…";
+  try{
+    await api({action:"set",n:n,name:name,by:by});
+    names[n]={name:name,by:by,ts:new Date().toISOString()};dirty[n]=false;render();toast("Saved #"+n);
+  }catch(e){toast(e.message||"Save failed")}
+  btn.disabled=false;btn.textContent="Save";
+}
+
+function showGate(msg){$("app").classList.add("hide");$("gate").classList.remove("hide");$("gateMsg").textContent=msg||""}
+function startApp(){$("gate").classList.add("hide");$("app").classList.remove("hide");if(!startApp.done){buildUI();startApp.done=1;setInterval(()=>{if(!document.hidden)load()},POLL_MS)}load()}
+
+$("passGo").onclick=()=>{const v=$("pass").value.trim();if(!v)return;KEY=v;localStorage.setItem("ww_key",KEY);startApp()};
+$("pass").addEventListener("keydown",e=>{if(e.key==="Enter")$("passGo").click()});
+if(API_URL.indexOf("PASTE_")===0){document.body.innerHTML='<p style="padding:24px">Set API_URL in index.html first.</p>'}
+else if(KEY)startApp();else showGate();
+</script>
+</body>
+</html>

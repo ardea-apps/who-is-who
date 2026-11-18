@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Who's who — class photo (view only)</title>
+<style>
+  :root{--bg:#f4efe6;--ink:#2a2118;--mut:#7a6d5c;--acc:#8a3b1e;--card:#fffdf8;--line:#ddd2bf}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 Georgia,"Times New Roman",serif}
+  header{padding:18px 16px 10px;max-width:1200px;margin:0 auto}
+  h1{margin:0 0 4px;font-size:1.5rem}
+  p.sub{margin:0;color:var(--mut);font-size:.95rem}
+  .bar{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 16px}
+  .bar .in{max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  input[type=search]{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;min-width:0;flex:1;max-width:320px}
+  .prog{margin-left:auto;font-size:.9rem;color:var(--mut)}
+  .wrap{max-width:1200px;margin:0 auto;padding:12px 16px 40px}
+  .photo{position:relative;border:1px solid var(--line);background:#000;overflow-x:auto}
+  .photo .inner{position:relative;min-width:900px}
+  .photo img{display:block;width:100%;height:auto}
+  .mk{position:absolute;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:rgba(138,59,30,.92);color:#fff;font:600 12px/26px Arial,sans-serif;text-align:center;border:1px solid #fff;cursor:pointer;padding:0}
+  .hint{font-size:.85rem;color:var(--mut);margin:6px 0 16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .card.flash{outline:3px solid var(--acc)}
+  .card .ph{display:grid;grid-template-columns:1fr}
+  .card .ph.two{grid-template-columns:1fr 1fr}
+  .card .cell{position:relative;min-width:0}
+  .card img{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:#ccc}
+  .card .num{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.7);color:#fff;border-radius:12px;padding:1px 9px;font:600 .85rem Arial,sans-serif}
+  .tag{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.7);color:#fff;border-radius:10px;padding:0 8px;font:600 .72rem Arial,sans-serif}
+  .card .b{padding:10px}
+  .nm{font-weight:700;min-height:1.4em}
+  .nm.empty{color:var(--mut);font-weight:400;font-style:italic}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>Who's who — class photo</h1>
+  <p class="sub">View only. Tap a number on the photo to jump to that person.</p>
+</header>
+<div class="bar"><div class="in">
+  <input type="search" id="q" placeholder="Search a name or number">
+  <span class="prog" id="prog"></span>
+</div></div>
+<div class="wrap">
+  <div class="photo"><div class="inner" id="inner"><img src="class.jpg" alt="Class photo with numbered markers"></div></div>
+  <div class="hint">Numbers match the cards below.</div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+/* ====== CONFIG ====== */
+const API_URL = "https://script.google.com/macros/s/AKfycbz6WIe_g2aAWccEbxqul8SkBCJIdK7KY3DGHaxdiFKUdv1btKzTk90genRG4Hkmu7Fhmg/exec";   // same /exec URL as index.html
+const COUNT = 40;
+const REFRESH_MS = 60000;
+const PTS = [[1,2.11,42.54],[2,5.83,48.47],[3,8.11,38.81],[4,12.57,53.39],[5,19.71,31.69],[6,21.26,51.36],[7,24.57,24.75],[8,25.54,66.61],[9,26.11,36.95],[10,32.86,31.86],[11,34.0,62.2],[12,35.26,29.32],[13,35.43,37.97],[14,35.83,49.32],[15,41.14,40.51],[16,42.74,17.46],[17,46.86,34.24],[18,49.54,25.76],[19,48.57,27.8],[20,49.26,14.07],[21,52.4,70.51],[22,54.29,35.76],[23,55.83,13.9],[24,56.0,51.02],[25,56.11,22.88],[26,62.11,34.75],[27,63.26,45.42],[28,63.43,26.44],[29,65.43,62.2],[30,66.11,31.86],[31,70.0,43.22],[32,71.83,58.64],[33,73.26,28.98],[34,73.83,35.76],[35,75.26,52.2],[36,78.29,60.51],[37,79.14,38.81],[38,83.14,43.39],[39,92.69,43.39],[40,82.86,32.2]];
+/* ==================== */
+
+const $ = id => document.getElementById(id);
+let names = {};
+const photos = {};
+let queue = [], busy = 0;
+
+function build(){
+  const inner=$("inner"), grid=$("grid");
+  PTS.forEach(([n,x,y])=>{
+    const b=document.createElement("button");
+    b.className="mk";b.textContent=n;b.style.left=x+"%";b.style.top=y+"%";b.setAttribute("aria-label","Person "+n);
+    b.onclick=()=>{const c=$("card"+n);c.classList.remove("hide");c.scrollIntoView({behavior:"smooth",block:"center"});c.classList.add("flash");setTimeout(()=>c.classList.remove("flash"),1500)};
+    inner.appendChild(b);
+  });
+  for(let n=1;n<=COUNT;n++){
+    const p=String(n).padStart(2,"0"), c=document.createElement("div");
+    c.className="card";c.id="card"+n;
+    c.innerHTML='<div class="ph" id="ph'+n+'"><div class="cell"><img loading="lazy" src="faces/'+p+'.jpg" alt="Person '+n+'"><span class="num">'+n+'</span><span class="tag">Then</span></div>'+
+      '<div class="cell hide" id="cn'+n+'"><img id="nw'+n+'" alt=""><span class="tag">Now</span></div></div>'+
+      '<div class="b"><div class="nm empty" id="nm'+n+'">—</div></div>';
+    grid.appendChild(c);
+  }
+  $("q").addEventListener("input",filter);
+}
+function render(){
+  let named=0;
+  for(let n=1;n<=COUNT;n++){
+    const r=names[n], el=$("nm"+n);
+    if(r&&r.name){named++;el.textContent=r.name;el.classList.remove("empty")}
+    else{el.textContent="—";el.classList.add("empty")}
+    if(r&&r.pv){
+      if(photos[n]&&photos[n].pv===r.pv)showNow(n);
+      else if(!queue.includes(n))queue.push(n);
+    }
+  }
+  $("prog").textContent=named+" of "+COUNT+" named";
+  filter();pump();
+}
+function filter(){
+  const q=$("q").value.trim().toLowerCase();
+  for(let n=1;n<=COUNT;n++){
+    const nm=((names[n]&&names[n].name)||"").toLowerCase();
+    $("card"+n).classList.toggle("hide",!!q&&!(nm.includes(q)||String(n)===q));
+  }
+}
+function showNow(n){const p=photos[n];if(p){$("nw"+n).src=p.url;$("cn"+n).classList.remove("hide");$("ph"+n).classList.add("two")}}
+function pump(){
+  while(busy<3&&queue.length){
+    const n=queue.shift();busy++;
+    fetch(API_URL+"?action=publicphoto&n="+n).then(r=>r.json())
+      .then(j=>{if(j.ok){photos[n]={pv:j.pv,url:"data:image/jpeg;base64,"+j.data};showNow(n)}})
+      .catch(()=>{}).finally(()=>{busy--;pump()});
+  }
+}
+async function load(){
+  try{const r=await fetch(API_URL+"?action=public");const j=await r.json();if(j.ok){names=j.names||{};render()}}catch(e){}
+}
+if(API_URL.indexOf("PASTE_")===0){document.body.innerHTML='<p style="padding:24px">Set API_URL in view.html first.</p>'}
+else{build();load();setInterval(()=>{if(!document.hidden)load()},REFRESH_MS)}
+</script>
+</body>
+</html>

@@ -4,23 +4,22 @@
  * SETUP
  * 1. Create a Google Sheet. Extensions > Apps Script. Paste this file as Code.gs.
  * 2. Change PASSPHRASE below.
- * 3. Deploy > New deployment > type "Web app".
+ * 3. Run "authorize" once (see below), then Deploy > New deployment > type "Web app".
  *      Execute as: Me
  *      Who has access: Anyone
  *    Authorize when asked. Copy the Web app URL (ends in /exec) into API_URL in index.html.
  * 4. After any later edit of this script: Deploy > Manage deployments > edit > New version.
  *
  * Photos: uploaded recent photos are saved as private files in a Drive folder
- * ("Whos-who recent photos", created on first upload, owned by you) and logged on the "Photos" tab.
- * The first photo upload asks you to re-authorize because the script now uses Drive:
- * after pasting this version, run any function once from the editor (e.g. latest_) and accept the permissions,
- * then redeploy as a new version.
+ * ("Whos-who recent photos", owned by you) and logged on the "Photos" tab.
+ * Before the first deployment, select the function "authorize" in the editor, click Run,
+ * and accept the permissions. It also creates the tabs and the Drive folder.
  *
  * Data: every save is appended as a row on the "Log" tab (full history, nothing is overwritten).
  * The page shows the most recent entry for each number.
  */
 const PASSPHRASE = 'CHANGE_ME';
-const COUNT = 39;
+const COUNT = 40;
 const SHEET = 'Log';
 const PHOTO_SHEET = 'Photos';
 const FOLDER_NAME = 'Whos-who recent photos';
@@ -167,4 +166,11 @@ function savePhoto_(p) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/** Run once from the editor to grant permissions and create the tabs and Drive folder. */
+function authorize() {
+  sheet_();
+  photoSheet_();
+  folder_();
 }

@@ -20,6 +20,8 @@
  */
 const PASSPHRASE = 'CHANGE_ME';
 const COUNT = 40;
+const PUBLIC_VIEW = true;    // false = turn off the keyless view.html page
+const PUBLIC_PHOTOS = true;  // false = view.html shows names only, no recent photos
 const SHEET = 'Log';
 const PHOTO_SHEET = 'Photos';
 const FOLDER_NAME = 'Whos-who recent photos';
@@ -89,21 +91,40 @@ function latest_() {
   return out;
 }
 
+function photoJson_(n) {
+  const ph = latestPhotos_()[n];
+  if (!ph) return { ok: false, error: 'No photo' };
+  try {
+    const blob = DriveApp.getFileById(ph.id).getBlob();
+    return { ok: true, pv: ph.pv, data: Utilities.base64Encode(blob.getBytes()) };
+  } catch (err) {
+    return { ok: false, error: 'Photo unavailable' };
+  }
+}
+
 function doGet(e) {
   const prm = (e && e.parameter) || {};
+
+  // Keyless read-only access for view.html (names and, optionally, recent photos; never "entered by").
+  if (prm.action === 'public' || prm.action === 'publicphoto') {
+    if (!PUBLIC_VIEW) return json_({ ok: false, error: 'Disabled' });
+    if (prm.action === 'publicphoto') {
+      if (!PUBLIC_PHOTOS) return json_({ ok: false, error: 'Disabled' });
+      return json_(photoJson_(Number(prm.n)));
+    }
+    const names = latest_();
+    const photos = PUBLIC_PHOTOS ? latestPhotos_() : {};
+    const out = {};
+    for (let n = 1; n <= COUNT; n++) {
+      if (names[n] && names[n].name) out[n] = { name: names[n].name };
+      if (photos[n]) { out[n] = out[n] || { name: '' }; out[n].pv = photos[n].pv; }
+    }
+    return json_({ ok: true, names: out });
+  }
+
   if (prm.key !== PASSPHRASE) return json_({ ok: false, error: 'Wrong passphrase' });
 
-  if (prm.action === 'photo') {
-    const n = Number(prm.n);
-    const ph = latestPhotos_()[n];
-    if (!ph) return json_({ ok: false, error: 'No photo' });
-    try {
-      const blob = DriveApp.getFileById(ph.id).getBlob();
-      return json_({ ok: true, pv: ph.pv, data: Utilities.base64Encode(blob.getBytes()) });
-    } catch (err) {
-      return json_({ ok: false, error: 'Photo unavailable' });
-    }
-  }
+  if (prm.action === 'photo') return json_(photoJson_(Number(prm.n)));
 
   const names = latest_();
   const photos = latestPhotos_();
